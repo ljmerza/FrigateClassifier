@@ -1,0 +1,5 @@
+Images
+__pycache__
+
+config.yml
+data/classifier.db
