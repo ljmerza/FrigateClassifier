@@ -46,3 +46,13 @@ services:
     environment:
       - TZ=America/New_York
 ```
+
+
+### Debugging
+
+set `logger_level` in your config to `DEBUG` to see more logging information:
+
+```yml
+...
+logger_level: DEBUG
+```
