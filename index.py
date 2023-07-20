@@ -29,8 +29,6 @@ firstmessage = True
 DBPATH = './data/classifier.db'
 NAMEDBPATH = './data/bird_names.db'
 
-logging.setLevel(config['logger_level'])
-
 
 def get_common_bird_name(scientific_name):
     conn = sqlite3.connect(NAMEDBPATH)
@@ -258,12 +256,17 @@ def run_mqtt_client():
 
 
 def main():
+    load_config()
+    setupdb()
+
+    logging.basicConfig(level=config['logger_level'])
+
+
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
     logging.info(f"Time: {current_time}")
     logging.info(f"Python version: {sys.version}")
     logging.info(f"Version info: {sys.version_info}")
 
-    load_config()
 
     # Initialize the image classification model for birds and create classifier
     base_options = core.BaseOptions(file_name=config['bird_classification']['model'], use_coral=False, num_threads=4)
@@ -280,8 +283,7 @@ def main():
     global dog_classifier
     dog_classifier = vision.ImageClassifier.create_from_options(options)
 
-    # setup database
-    setupdb()
+   
 
     # start mqtt client
     mqtt_process = multiprocessing.Process(target=run_mqtt_client)
