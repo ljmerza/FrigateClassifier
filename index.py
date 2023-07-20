@@ -31,6 +31,11 @@ CONFIG_PATH = './config/config.yml'
 DBPATH = './config/classifier.db'
 NAMEDBPATH = './data/bird_names.db'
 
+LABELS = {
+    'DOG': 'dog',
+    'BIRD': 'bird',
+}
+
 
 def get_common_bird_name(scientific_name):
     conn = sqlite3.connect(NAMEDBPATH)
@@ -51,9 +56,9 @@ def classify(image, label):
     tensor_image = vision.TensorImage.create_from_array(image)
     categories = None
     
-    if label == 'bird':
+    if label == LABELS['BIRD']:
         categories = bird_classifier.classify(tensor_image)
-    elif label == 'dog':
+    elif label == LABELS['DOG']:
         categories = dog_classifier.classify(tensor_image)
     else:
         _LOGGER.error(f"Unknown label: {label}")
@@ -118,8 +123,8 @@ def on_message(client, userdata, message):
         # Extract the 'after' element data and store it in a dictionary
         after_data = payload_dict.get('after', {})
 
-        is_bird = after_data['label'] == 'bird'
-        is_dog = after_data['label'] == 'dog'
+        is_bird = after_data['label'] == LABELS['BIRD']
+        is_dog = after_data['label'] == LABELS['DOG']
 
         is_classified_object = is_bird or is_dog
         classification_config = config['bird_classification'] if is_bird else config['dog_classification']
@@ -138,6 +143,7 @@ def on_message(client, userdata, message):
                 "quality": 95
             }
             response = requests.get(snapshot_url, params=params)
+            _LOGGER.debug(f"image get response: {response.status_code}")
 
             # Check if the request was successful (HTTP status code 200)
             if response.status_code == 200:
@@ -158,7 +164,8 @@ def on_message(client, userdata, message):
                 padded_image.save("shrunk.jpg", format="JPEG")
 
                 np_arr = np.array(padded_image)
-
+                
+                _LOGGER.debug(f"classifying image for a {after_data['label']}")
                 categories = classify(np_arr, after_data['label'])
                 category = categories[0]
                 index = category.index
