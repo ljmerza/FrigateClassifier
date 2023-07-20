@@ -26,6 +26,9 @@ dog_classification:
 logger_level: INFO
 ```
 
+Update your frigate url, mqtt server settings. If you are using mqtt authentication, update the username and password. Update the camera name to match the camera name in your frigate config.
+
+
 ### Running
 
 ```bash
