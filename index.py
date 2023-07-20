@@ -216,7 +216,7 @@ def on_message(client, userdata, message):
                 _LOGGER.error(f"Error: Could not retrieve the image: {response.text}")
         else:
             if after_data['camera'] not in config['frigate']['camera']:
-                _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong camera: {wrong_camera}")
+                _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong camera: {after_data['camera']}")
             else:
                 _LOGGER.debug(f"Skipping event: {after_data['id']} because it is not a classified object: {after_data['label']}")
     else:
