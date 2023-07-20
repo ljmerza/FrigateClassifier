@@ -57,7 +57,8 @@ def classify(image, label):
         categories = dog_classifier.classify(tensor_image)
     else:
         _LOGGER.error(f"Unknown label: {label}")
-
+    
+    _LOGGER.debug('classify categories:', categories)
     return categories.classifications[0].categories
 
 
@@ -81,7 +82,7 @@ def on_disconnect(client, userdata, rc):
 
 
 def set_sublabel(frigate_url, frigate_event, sublabel):
-    post_url = frigate_url + "/api/events/" + frigate_event + "/sub_label"
+    post_url = f"{frigate_url}/api/events/{frigate_event}/sub_label"
     _LOGGER.debug(f'sublabel: {sublabel}')
     _LOGGER.debug(f'sublabel url: {post_url}')
 
@@ -99,7 +100,7 @@ def set_sublabel(frigate_url, frigate_event, sublabel):
 
     # Check for a successful response
     if response.status_code == 200:
-        _LOGGER.info("Sublabel set successfully to: " + sublabel)
+        _LOGGER.info(f"Sublabel set successfully to: {sublabel}")
     else:
         _LOGGER.error("Failed to set sublabel. Status code:", response.status_code)
 
@@ -112,6 +113,7 @@ def on_message(client, userdata, message):
 
         # Convert the MQTT payload to a Python dictionary
         payload_dict = json.loads(message.payload)
+        _LOGGER.debug(payload_dict)
 
         # Extract the 'after' element data and store it in a dictionary
         after_data = payload_dict.get('after', {})
@@ -123,18 +125,18 @@ def on_message(client, userdata, message):
         if (after_data['camera'] in config['frigate']['camera'] and is_classified_object):
             frigate_event = after_data['id']
             frigate_url = config['frigate']['frigate_url']
-            snapshot_url = frigate_url + "/api/events/" + frigate_event + "/snapshot.jpg"
 
-            _LOGGER.debug("Getting image for event: " + frigate_event)
-            _LOGGER.debug("Here's the URL: " + snapshot_url)
+            snapshot_url = f"{frigate_url}/api/events/{frigate_event}/snapshot.jpg"
+            _LOGGER.debug(f"Getting image for event: {frigate_event}" )
+            _LOGGER.debug(f"event URL: {snapshot_url}")
 
             # Send a GET request to the snapshot_url
             params = {
                 "crop": 1,
                 "quality": 95
             }
-
             response = requests.get(snapshot_url, params=params)
+
             # Check if the request was successful (HTTP status code 200)
             if response.status_code == 200:
                 # Open the image from the response content and convert it to a NumPy array
@@ -209,7 +211,7 @@ def on_message(client, userdata, message):
 
 
             else:
-                _LOGGER.error(f"Error: Could not retrieve the image: {response}")
+                _LOGGER.error(f"Error: Could not retrieve the image: {response.text}")
 
     else:
         firstmessage = False
@@ -242,7 +244,7 @@ def load_config():
         config = yaml.safe_load(config_file)
 
 def run_mqtt_client():
-    _LOGGER.info("Starting MQTT client. Connecting to: " + config['frigate']['mqtt_server'])
+    _LOGGER.info("fStarting MQTT client. Connecting to: {config['frigate']['mqtt_server']}")
     now = datetime.now()
     current_time = now.strftime("%Y%m%d%H%M%S")
     client = mqtt.Client("FrigateClassifier" + current_time)
