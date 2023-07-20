@@ -30,7 +30,7 @@ Update your frigate url, mqtt server settings. If you are using mqtt authenticat
 ### Running
 
 ```bash
-docker run -v /path/to/config.yml:config.yml -e TZ=America/New_York -it --rm --name frigate_classifier lmerza/frigate_classifier:latest
+docker run -v /path/to/config:/config -e TZ=America/New_York -it --rm --name frigate_classifier lmerza/frigate_classifier:latest
 ```
 
 or using docker-compose:
@@ -41,7 +41,7 @@ services:
     image: lmerza/frigate_classifier:latest
     container_name: frigate_classifier
     volumes:
-      - /path/to/config.yml:/config.yml
+      - /path/to/config:/config
     restart: unless-stopped
     environment:
       - TZ=America/New_York
