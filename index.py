@@ -215,7 +215,10 @@ def on_message(client, userdata, message):
             else:
                 _LOGGER.error(f"Error: Could not retrieve the image: {response.text}")
         else:
-            _LOGGER.debug(f"Skipping event: {after_data['id']}")
+            if after_data['camera'] not in config['frigate']['camera']:
+                _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong camera: {wrong_camera}")
+            else:
+                _LOGGER.debug(f"Skipping event: {after_data['id']} because it is not a classified object: {after_data['label']}")
     else:
         firstmessage = False
         _LOGGER.debug("skipping first message")
