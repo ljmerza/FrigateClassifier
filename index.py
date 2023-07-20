@@ -142,8 +142,7 @@ def on_message(client, userdata, message):
                 # Open the image from the response content and convert it to a NumPy array
                 image = Image.open(BytesIO(response.content))
 
-                file_path = "fullsized.jpg"  # Change this to your desired file path
-                image.save(file_path, format="JPEG")  # You can change the format if needed
+                image.save("fullsized.jpg", format="JPEG")
 
                 # Resize the image while maintaining its aspect ratio
                 max_size = (224, 224)
@@ -152,10 +151,9 @@ def on_message(client, userdata, message):
                 # Pad the image to fill the remaining space
                 padded_image = ImageOps.expand(image, border=((max_size[0] - image.size[0]) // 2,
                                                               (max_size[1] - image.size[1]) // 2),
-                                               fill='black')  # Change the fill color if necessary
+                                               fill='black')
 
-                file_path = "shrunk.jpg"  # Change this to your desired file path
-                padded_image.save(file_path, format="JPEG")  # You can change the format if needed
+                padded_image.save("shrunk.jpg", format="JPEG")
 
                 np_arr = np.array(padded_image)
 
@@ -184,14 +182,17 @@ def on_message(client, userdata, message):
                     if result is None:
                         # Insert a new record if it doesn't exist
                         _LOGGER.info("No record yet for this event. Storing.")
+
                         cursor.execute("""  
                             INSERT INTO detections (detection_time, detection_index, score,  
                             display_name, category_name, frigate_event, camera_name) VALUES (?, ?, ?, ?, ?, ?, ?)  
                             """, (formatted_start_time, index, score, display_name, category_name, frigate_event, after_data['camera']))
+
                         # set the sublabel
                         set_sublabel(frigate_url, frigate_event, name)
                     else:
                         _LOGGER.info("There is already a record for this event. Checking score")
+
                         # Update the existing record if the new score is higher
                         existing_score = result[3]
                         if score > existing_score:
@@ -208,7 +209,6 @@ def on_message(client, userdata, message):
 
                     # Commit the changes
                     conn.commit()
-
 
             else:
                 _LOGGER.error(f"Error: Could not retrieve the image: {response.text}")
