@@ -58,7 +58,7 @@ def classify(image, label):
     else:
         _LOGGER.error(f"Unknown label: {label}")
     
-    _LOGGER.debug('classify categories:', categories)
+    _LOGGER.debug(f'classify categories: {categories}')
     return categories.classifications[0].categories
 
 
@@ -102,7 +102,7 @@ def set_sublabel(frigate_url, frigate_event, sublabel):
     if response.status_code == 200:
         _LOGGER.info(f"Sublabel set successfully to: {sublabel}")
     else:
-        _LOGGER.error("Failed to set sublabel. Status code:", response.status_code)
+        _LOGGER.error(f"Failed to set sublabel. Status code: {response.status_code}")
 
 
 def on_message(client, userdata, message):
@@ -113,13 +113,15 @@ def on_message(client, userdata, message):
 
         # Convert the MQTT payload to a Python dictionary
         payload_dict = json.loads(message.payload)
-        _LOGGER.debug(payload_dict)
+        _LOGGER.debug(f'mqtt message: {payload_dict}')
 
         # Extract the 'after' element data and store it in a dictionary
         after_data = payload_dict.get('after', {})
 
         is_bird = after_data['label'] == 'bird'
-        is_classified_object = is_bird or after_data['label'] == 'dog'
+        is_dog = after_data['label'] == 'dog'
+
+        is_classified_object = is_bird or is_dog
         classification_config = config['bird_classification'] if is_bird else config['dog_classification']
         
         if (after_data['camera'] in config['frigate']['camera'] and is_classified_object):
@@ -168,7 +170,7 @@ def on_message(client, userdata, message):
                 formatted_start_time = start_time.strftime("%Y-%m-%d %H:%M:%S")
                 result_text = formatted_start_time + "\n"
                 result_text = result_text + str(category)
-                _LOGGER.debug(result_text)
+                _LOGGER.debug(f"result_text: {result_text}")
 
                 if index != 964 and score > classification_config['threshold']:  # 964 is "background"
                     cursor = conn.cursor()
@@ -212,7 +214,8 @@ def on_message(client, userdata, message):
 
             else:
                 _LOGGER.error(f"Error: Could not retrieve the image: {response.text}")
-
+        else:
+            _LOGGER.debug(f"Skipping event: {after_data['id']}")
     else:
         firstmessage = False
         _LOGGER.debug("skipping first message")
@@ -244,7 +247,7 @@ def load_config():
         config = yaml.safe_load(config_file)
 
 def run_mqtt_client():
-    _LOGGER.info("fStarting MQTT client. Connecting to: {config['frigate']['mqtt_server']}")
+    _LOGGER.info(f"fStarting MQTT client. Connecting to: {config['frigate']['mqtt_server']}")
     now = datetime.now()
     current_time = now.strftime("%Y%m%d%H%M%S")
     client = mqtt.Client("FrigateClassifier" + current_time)
@@ -275,23 +278,21 @@ def main():
     _LOGGER.info(f"Python version: {sys.version}")
     _LOGGER.info(f"Version info: {sys.version_info}")
 
+    _LOGGER.debug(f"config: {config}")
 
     # Initialize the image classification model for birds and create classifier
-    base_options = core.BaseOptions(file_name=config['bird_classification']['model'], use_coral=False, num_threads=4)
+    base_options = core.BaseOptions(file_name='data/bird_model.tflite', use_coral=False, num_threads=4)
     classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
     options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
     global bird_classifier
     bird_classifier = vision.ImageClassifier.create_from_options(options)
 
     # Initialize the image classification model for dog and create classifier
-    base_options = core.BaseOptions(file_name=config['dog_classification']['model'], use_coral=False, num_threads=4)
+    base_options = core.BaseOptions(file_name='data/dog_model.tflite', use_coral=False, num_threads=4)
     classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
     options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
-
     global dog_classifier
     dog_classifier = vision.ImageClassifier.create_from_options(options)
-
-   
 
     # start mqtt client
     mqtt_process = multiprocessing.Process(target=run_mqtt_client)
