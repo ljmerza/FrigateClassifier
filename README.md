@@ -18,10 +18,8 @@ frigate:
   camera:
     - birdcam
 bird_classification:
-  model: data/bird_model.tflite
   threshold: 0.7
 dog_classification:
-  model: data/dog_model.tflite
   threshold: 0.7
 logger_level: INFO
 ```
