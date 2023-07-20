@@ -27,9 +27,10 @@ config = None
 firstmessage = True
 _LOGGER = None
 
+VERSION = '1.0.0'
 CONFIG_PATH = './config/config.yml'
 DBPATH = './config/classifier.db'
-NAMEDBPATH = './data/bird_names.db'
+BIRD_NAME_DB = './data/bird_names.db'
 
 LABELS = {
     'DOG': 'dog',
@@ -38,7 +39,7 @@ LABELS = {
 
 
 def get_common_bird_name(scientific_name):
-    conn = sqlite3.connect(NAMEDBPATH)
+    conn = sqlite3.connect(BIRD_NAME_DB)
     cursor = conn.cursor()
 
     cursor.execute("SELECT common_name FROM birdnames WHERE scientific_name = ?", (scientific_name,))
@@ -59,9 +60,11 @@ def classify(image, label):
     if label == LABELS['BIRD']:
         categories = bird_classifier.classify(tensor_image)
     elif label == LABELS['DOG']:
-        categories = dog_classifier.classify(tensor_image)
+        # categories = dog_classifier.classify(tensor_image)
+        return None
     else:
         _LOGGER.error(f"Unknown label: {label}")
+        return None
     
     _LOGGER.debug(f'classify categories: {categories}')
     return categories.classifications[0].categories
@@ -143,7 +146,6 @@ def on_message(client, userdata, message):
                 "quality": 95
             }
             response = requests.get(snapshot_url, params=params)
-            _LOGGER.debug(f"image get response: {response.status_code}")
 
             # Check if the request was successful (HTTP status code 200)
             if response.status_code == 200:
@@ -167,6 +169,9 @@ def on_message(client, userdata, message):
                 
                 _LOGGER.debug(f"classifying image for a {after_data['label']}")
                 categories = classify(np_arr, after_data['label'])
+                if categories is None:
+                    return
+                    
                 category = categories[0]
                 index = category.index
                 score = category.score
@@ -285,21 +290,21 @@ def main():
 
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
     _LOGGER.info(f"Time: {current_time}")
-    _LOGGER.info(f"Python version: {sys.version}")
-    _LOGGER.info(f"Version info: {sys.version_info}")
+    _LOGGER.info(f"Python Version: {sys.version}")
+    _LOGGER.info(f"Frigate Classifier Version: {VERSION}")
 
     _LOGGER.debug(f"config: {config}")
 
+    classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
+
     # Initialize the image classification model for birds and create classifier
     base_options = core.BaseOptions(file_name='data/bird_model.tflite', use_coral=False, num_threads=4)
-    classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
     options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
     global bird_classifier
     bird_classifier = vision.ImageClassifier.create_from_options(options)
 
     # Initialize the image classification model for dog and create classifier
     base_options = core.BaseOptions(file_name='data/dog_model.tflite', use_coral=False, num_threads=4)
-    classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
     options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
     global dog_classifier
     dog_classifier = vision.ImageClassifier.create_from_options(options)
