@@ -117,10 +117,10 @@ def on_message(client, userdata, message):
         after_data = payload_dict.get('after', {})
 
         is_bird = after_data['label'] == 'bird'
-        bird_or_dog = is_bird or after_data['label'] == 'dog'
+        is_classified_object = is_bird or after_data['label'] == 'dog'
         classification_config = config['bird_classification'] if is_bird else config['dog_classification']
         
-        if (after_data['camera'] in config['frigate']['camera'] and bird_or_dog):
+        if (after_data['camera'] in config['frigate']['camera'] and is_classified_object):
             frigate_event = after_data['id']
             frigate_url = config['frigate']['frigate_url']
             snapshot_url = frigate_url + "/api/events/" + frigate_event + "/snapshot.jpg"

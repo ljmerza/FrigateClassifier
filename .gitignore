@@ -2,4 +2,3 @@ Images
 __pycache__
 
 config
-data/classifier.db

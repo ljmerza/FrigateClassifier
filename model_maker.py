@@ -18,14 +18,14 @@ model.summary()
 
 loss, accuracy = model.evaluate(test_data)
 
-model.export(export_dir='./Images')
+model.export(export_dir='.')
 
 """
 docker build -f maker.dockerfile . -t lmerza/frigateclassifier_mm:latest
 docker run -v ./Images:/usr/app/src/Images lmerza/frigateclassifier_mm:latest
 
-docker build -t lmerza/frigateclassifier:latest . 
 docker login
+docker build -t lmerza/frigateclassifier:latest . 
 docker tag lmerza/frigateclassifier:latest lmerza/frigateclassifier:latest
 docker push lmerza/frigateclassifier:latest
 docker system prune -a
