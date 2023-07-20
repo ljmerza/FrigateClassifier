@@ -247,7 +247,7 @@ def load_config():
         config = yaml.safe_load(config_file)
 
 def run_mqtt_client():
-    _LOGGER.info(f"fStarting MQTT client. Connecting to: {config['frigate']['mqtt_server']}")
+    _LOGGER.info(f"Starting MQTT client. Connecting to: {config['frigate']['mqtt_server']}")
     now = datetime.now()
     current_time = now.strftime("%Y%m%d%H%M%S")
     client = mqtt.Client("FrigateClassifier" + current_time)
