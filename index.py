@@ -31,6 +31,9 @@ VERSION = '1.0.0'
 CONFIG_PATH = './config/config.yml'
 DBPATH = './config/classifier.db'
 BIRD_NAME_DB = './data/bird_names.db'
+IMAGE_FILE_FULL = './fullsized.jpg'
+IMAGE_FILE_CROPPED = './cropped.jpg'
+IMAGE_FILE_SHRUNK = './shrunk.jpg'
 
 LABELS = {
     'DOG': 'dog',
@@ -53,15 +56,30 @@ def get_common_bird_name(scientific_name):
         return ""
 
 
-def classify(image, label):
-    tensor_image = vision.TensorImage.create_from_array(image)
+def classify(label, image):
     categories = None
-    
+
     if label == LABELS['BIRD']:
+        # Resize the image while maintaining its aspect ratio
+        max_size = (224, 224)
+        image.thumbnail(max_size)
+
+        # Pad the image to fill the remaining space
+        x = (max_size[0] - image.size[0]) // 2
+        y = (max_size[1] - image.size[1]) // 2
+        padded_image = ImageOps.expand(image, border=(x, y), fill='black')
+        padded_image.save(IMAGE_FILE_SHRUNK, format="JPEG")
+        np_arr = np.array(padded_image)
+
+        tensor_image = vision.TensorImage.create_from_array(image)
         categories = bird_classifier.classify(tensor_image)
+
     elif label == LABELS['DOG']:
-        # categories = dog_classifier.classify(tensor_image)
-        return None
+        # # crop the image and save
+        # cropped_image = image.crop(bounding_box)
+        # cropped_image.save(IMAGE_FILE_CROPPED, format="JPEG")
+        tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
+        categories = dog_classifier.classify(tensor_image)
     else:
         _LOGGER.error(f"Unknown label: {label}")
         return None
@@ -129,6 +147,9 @@ def on_message(client, userdata, message):
         is_bird = after_data['label'] == LABELS['BIRD']
         is_dog = after_data['label'] == LABELS['DOG']
 
+        # bounding box of event object
+        bounding_box = after_data['region']
+
         is_classified_object = is_bird or is_dog
         classification_config = config['bird_classification'] if is_bird else config['dog_classification']
         
@@ -140,7 +161,6 @@ def on_message(client, userdata, message):
             _LOGGER.debug(f"Getting image for event: {frigate_event}" )
             _LOGGER.debug(f"event URL: {snapshot_url}")
 
-            # Send a GET request to the snapshot_url
             params = {
                 "crop": 1,
                 "quality": 95
@@ -149,26 +169,11 @@ def on_message(client, userdata, message):
 
             # Check if the request was successful (HTTP status code 200)
             if response.status_code == 200:
-                # Open the image from the response content and convert it to a NumPy array
                 image = Image.open(BytesIO(response.content))
+                image.save(IMAGE_FILE_FULL, format="JPEG")
 
-                image.save("fullsized.jpg", format="JPEG")
-
-                # Resize the image while maintaining its aspect ratio
-                max_size = (224, 224)
-                image.thumbnail(max_size)
-
-                # Pad the image to fill the remaining space
-                padded_image = ImageOps.expand(image, border=((max_size[0] - image.size[0]) // 2,
-                                                              (max_size[1] - image.size[1]) // 2),
-                                               fill='black')
-
-                padded_image.save("shrunk.jpg", format="JPEG")
-
-                np_arr = np.array(padded_image)
-                
                 _LOGGER.debug(f"classifying image for a {after_data['label']}")
-                categories = classify(np_arr, after_data['label'])
+                categories = classify(after_data['label'], image)
                 if categories is None:
                     return
                     
@@ -238,7 +243,7 @@ def on_message(client, userdata, message):
     conn.close()
 
 
-def setupdb():
+def setup_db():
     conn = sqlite3.connect(DBPATH)
     cursor = conn.cursor()
     cursor.execute("""    
@@ -278,15 +283,33 @@ def run_mqtt_client():
     client.connect(config['frigate']['mqtt_server'])
     client.loop_forever()
 
-
-def main():
-    load_config()
-    setupdb()
-
-    logging.basicConfig()
+def load_logger():
     global _LOGGER
     _LOGGER = logging.getLogger(__name__)
     _LOGGER.setLevel(config['logger_level'])
+
+    # Create a formatter to customize the log message format
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Create a console handler and set the level to display all messages
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(formatter)
+
+    # Create a file handler to log messages to a file
+    file_handler = logging.FileHandler('frigateclassifier.log')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+
+    # Add the handlers to the logger
+    _LOGGER.addHandler(console_handler)
+    _LOGGER.addHandler(file_handler)
+    
+
+def main():
+    load_config()
+    setup_db()
+    load_logger()
 
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
     _LOGGER.info(f"Time: {current_time}")

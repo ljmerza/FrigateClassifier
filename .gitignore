@@ -4,4 +4,11 @@ __pycache__
 config
 
 fullsized.jpg
+cropped.jpg
 shrunk.jpg
+
+fullsized_test.jpg
+cropped_test.jpg
+shrunk_test.jpg
+
+frigateclassifier.log
