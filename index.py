@@ -23,8 +23,6 @@ import json
 import requests
 from PIL import Image, ImageOps
 
-bird_classifier = None
-dog_classifier = None
 config = None
 firstmessage = True
 _LOGGER = None
@@ -51,18 +49,14 @@ class TimeoutError(Exception):
 
 class timeout:
     def __init__(self, seconds=1, error_message='Timeout'):
-        print('initializing timeout')
         self.seconds = seconds
         self.error_message = error_message
     def handle_timeout(self, signum, frame):
-        print('handling timeout')
         raise TimeoutError(self.error_message)
     def __enter__(self):
-        print('entering timeout')
         signal.signal(signal.SIGALRM, self.handle_timeout)
         signal.alarm(self.seconds)
     def __exit__(self, type, value, traceback):
-        print('exiting timeout')
         signal.alarm(0)
 
 def get_common_bird_name(scientific_name):
@@ -103,26 +97,41 @@ def image_manipulation(response_content, after_data):
     return image, padded_image, cropped_image
 
 def classify(response_content, after_data):
-    categories = None
     label = after_data['label']
     _LOGGER.debug(f"classifying image for a {label}")
 
+    # format image for classification
     image, padded_image, cropped_image = image_manipulation(response_content, after_data)
-
     np_arr = np.array(padded_image)
     tensor_image = vision.TensorImage.create_from_array(np_arr)
     # tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
 
+    # get classifier file
+    file_name = None
     if label == LABELS['BIRD']:
-        categories = bird_classifier.classify(tensor_image)
+        file_name='data/bird_model.tflite'
     elif label == LABELS['DOG']:
-        categories = dog_classifier.classify(tensor_image)
+        file_name='data/dog_model.tflite'
+        
     else:
         _LOGGER.error(f"Unknown label: {label}")
         return None
     
-    _LOGGER.debug(f'classify categories: {categories}')
-    return categories.classifications[0].categories
+    # generate classifier and classify with timeout
+    base_options = core.BaseOptions(file_name=file_name, use_coral=False, num_threads=4)
+    classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
+    options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
+    classifier = vision.ImageClassifier.create_from_options(options)
+
+    try:
+        with timeout(seconds=30):
+            result = classifier.classify(tensor_image)
+            categories = result.classifications[0].categories
+            _LOGGER.debug(f'classify categories: {categories}')
+            return categories
+    except TimeoutError:
+        _LOGGER.error(f"TimeoutError classifying event: {frigate_event}")
+        return None
 
 
 def on_connect(client, userdata, flags, rc):
@@ -216,14 +225,8 @@ def on_message(client, userdata, message):
         _LOGGER.error(f"Error getting snapshot: {response.status_code}")
         return
     
-    # classify
-    categories = None
-    try:
-        with timeout(seconds=10):
-            categories = classify(response.content, after_data)
-    except TimeoutError:
-        _LOGGER.error(f"TimeoutError classifying event: {frigate_event}")
-        return
+    # classify  
+    categories = classify(response.content, after_data)
     if categories is None:
         return
     
@@ -362,22 +365,7 @@ def main():
     _LOGGER.info(f"Time: {current_time}")
     _LOGGER.info(f"Python Version: {sys.version}")
     _LOGGER.info(f"Frigate Classifier Version: {VERSION}")
-
     _LOGGER.debug(f"config: {config}")
-
-    classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
-
-    # Initialize the image classification model for birds and create classifier
-    base_options = core.BaseOptions(file_name='data/bird_model.tflite', use_coral=False, num_threads=4)
-    options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
-    global bird_classifier
-    bird_classifier = vision.ImageClassifier.create_from_options(options)
-
-    # Initialize the image classification model for dog and create classifier
-    base_options = core.BaseOptions(file_name='data/dog_model.tflite', use_coral=False, num_threads=4)
-    options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
-    global dog_classifier
-    dog_classifier = vision.ImageClassifier.create_from_options(options)
 
     # start mqtt client
     mqtt_process = multiprocessing.Process(target=run_mqtt_client)
