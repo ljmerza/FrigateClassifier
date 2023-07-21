@@ -112,7 +112,6 @@ def classify(response_content, after_data):
         file_name='data/bird_model.tflite'
     elif label == LABELS['DOG']:
         file_name='data/dog_model.tflite'
-        
     else:
         _LOGGER.error(f"Unknown label: {label}")
         return None
@@ -178,7 +177,6 @@ def set_sublabel(frigate_url, frigate_event, sublabel):
 
 
 def on_message(client, userdata, message):
-
     global firstmessage
     if firstmessage:
         firstmessage = False
@@ -320,10 +318,13 @@ def run_mqtt_client():
     _LOGGER.info(f"Starting MQTT client. Connecting to: {config['frigate']['mqtt_server']}")
     now = datetime.now()
     current_time = now.strftime("%Y%m%d%H%M%S")
+
+    # setup mqtt client
     client = mqtt.Client("FrigateClassifier" + current_time)
     client.on_message = on_message
     client.on_disconnect = on_disconnect
     client.on_connect = on_connect
+
     # check if we are using authentication and set username/password if so
     if config['frigate']['mqtt_auth']:
         username = config['frigate']['mqtt_username']
