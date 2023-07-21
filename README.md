@@ -1,6 +1,6 @@
 # Frigate Classifier
 
-This is a docker image that runs a python script that can be used to identify species/breeds of animals (birds and dogs) detected by [blakeblackshear/frigate](https://github.com/blakeblackshear/frigate)
+Identify breeds/species of dogs and birds detected by [blakeblackshear/frigate](https://github.com/blakeblackshear/frigate)
 
 ### Setup
 
@@ -44,6 +44,8 @@ services:
     environment:
       - TZ=America/New_York
 ```
+
+https://hub.docker.com/r/lmerza/frigateclassifier
 
 ### Debugging
 

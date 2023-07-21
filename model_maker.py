@@ -25,8 +25,8 @@ docker build -f maker.dockerfile . -t lmerza/frigateclassifier_mm:latest
 docker run -v ./Images:/usr/app/src/Images lmerza/frigateclassifier_mm:latest
 
 docker login
-docker build -t lmerza/frigateclassifier:latest . 
-docker tag lmerza/frigateclassifier:latest lmerza/frigateclassifier:latest
+docker build -t lmerza/frigateclassifier:1.0.0 -t lmerza/frigateclassifier:latest . 
 docker push lmerza/frigateclassifier:latest
+docker push lmerza/frigateclassifier:1.0.0
 docker system prune -a
 """
