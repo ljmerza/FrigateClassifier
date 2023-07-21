@@ -74,7 +74,7 @@ def get_common_bird_name(scientific_name):
         _LOGGER.warn(f"No common bird name for: {scientific_name}")
         return ""
 
-def get_dog_common_name(display_name):
+def get_common_dog_name(display_name):
     # Use regex to find the part after the hyphen
     pattern = r'-(.+)'
     match = re.search(pattern, display_name)
@@ -269,9 +269,12 @@ def on_message(client, userdata, message):
     # get sublabel that will be used
     sublabel = None
     if is_dog:
-        sublabel = get_dog_common_name(display_name)
-    else:
+        sublabel = get_common_dog_name(display_name)
+    elif is_bird:
         sublabel = get_common_bird_name(display_name)
+    else:
+        _LOGGER.error(f"Unknown label: {label}")
+        return
 
     if result is None:
         # Insert a new record if it doesn't exist
