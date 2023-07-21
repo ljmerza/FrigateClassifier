@@ -28,7 +28,7 @@ config = None
 firstmessage = True
 _LOGGER = None
 
-VERSION = '1.0.1'
+VERSION = '1.0.2'
 
 CONFIG_PATH = './config/config.yml'
 DB_PATH = './config/classifier.db'
