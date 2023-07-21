@@ -1,7 +1,7 @@
 numpy==1.24.3
-opencv_python==4.7.0.72
+opencv_python==4.8.0.74
 paho_mqtt==1.6.1
-PyYAML==6.0
-tflite-support==0.4.3
-requests==2.30.0
-Pillow==9.5.0
+PyYAML==6.0.1
+tflite-support==0.4.4
+requests==2.31.0
+Pillow==10.0.0

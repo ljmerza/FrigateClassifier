@@ -23,7 +23,7 @@ with open(CONFIG_PATH, 'r') as config_file:
 
 
 frigate_url = config['frigate']['frigate_url']
-frigate_event = '1689958086.071282-gqgpdf'
+frigate_event = '1689962731.134657-e3bjsh'
 bounding_box = [1341, 895, 1495, 1061]
 region = [1155, 496, 1739, 1080]
 
@@ -53,11 +53,13 @@ options = vision.ImageClassifierOptions(base_options=base_options, classificatio
 dog_classifier = vision.ImageClassifier.create_from_options(options)
 
 
-def image_manipulation(response_content):
+def image_manipulation(response_content, after_data):
     image = Image.open(BytesIO(response_content))
     image.save(IMAGE_FILE_FULL, format="JPEG")
 
     # crop the image and save
+    bounding_box = after_data['box']
+    region = after_data['region']
     cropped_image = image.crop(bounding_box)
     cropped_image.save(IMAGE_FILE_CROPPED, format="JPEG")
 
@@ -85,11 +87,11 @@ def get_specs(result):
   print(f"result_text: {category_name}, {display_name}, {score}, {index}")
 
 
-image, padded_image, cropped_image = image_manipulation(response.content)
+after_data = { 'box': bounding_box, 'region': region }
+image, padded_image, cropped_image = image_manipulation(response.content, after_data)
 
 np_arr = np.array(padded_image)
 tensor_image = vision.TensorImage.create_from_array(np_arr)
-
 classification_result_bird = bird_classifier.classify(tensor_image)
 classification_result_dog = dog_classifier.classify(tensor_image)
 get_specs(classification_result_bird)

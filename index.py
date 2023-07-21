@@ -27,7 +27,7 @@ config = None
 firstmessage = True
 _LOGGER = None
 
-VERSION = '1.0.0'
+VERSION = '1.0.1-beta'
 
 CONFIG_PATH = './config/config.yml'
 DB_PATH = './config/classifier.db'
@@ -60,7 +60,7 @@ def get_common_bird_name(scientific_name):
         return ""
 
 
-def image_manipulation(response_content, after_data):
+def image_manipulation(response_content, after_dataafter_data):
     image = Image.open(BytesIO(response_content))
     image.save(IMAGE_FILE_FULL, format="JPEG")
 
@@ -91,8 +91,8 @@ def classify(response_content, after_data):
     image, padded_image, cropped_image = image_manipulation(response_content, after_data)
 
     np_arr = np.array(padded_image)
-    # tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
     tensor_image = vision.TensorImage.create_from_array(np_arr)
+    # tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
 
     if label == LABELS['BIRD']:
         categories = bird_classifier.classify(tensor_image)
