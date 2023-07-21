@@ -2,6 +2,8 @@
 
 Identify breeds/species of dogs and birds detected by [blakeblackshear/frigate](https://github.com/blakeblackshear/frigate). This will try to identify a bird or dog and add a Frigate sublabel to that event.
 
+![Bird Classification](example.png)
+
 ### Setup
 
 Create a `config.yml` file in your docker volume with the following contents:
