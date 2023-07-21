@@ -28,13 +28,16 @@ firstmessage = True
 _LOGGER = None
 
 VERSION = '1.0.0'
+
 CONFIG_PATH = './config/config.yml'
-DBPATH = './config/classifier.db'
+DB_PATH = './config/classifier.db'
 BIRD_NAME_DB = './data/bird_names.db'
+LOG_FILE = './config/frigateclassifier.log'
 
 IMAGE_FILE_FULL = './images/fullsized.jpg'
 IMAGE_FILE_CROPPED = './images/cropped.jpg'
 IMAGE_FILE_PADDED = './images/padded.jpg'
+
 
 LABELS = {
     'DOG': 'dog',
@@ -147,7 +150,7 @@ def set_sublabel(frigate_url, frigate_event, sublabel):
 
 
 def on_message(client, userdata, message):
-    conn = sqlite3.connect(DBPATH)
+    conn = sqlite3.connect(DB_PATH)
 
     global firstmessage
     if not firstmessage:
@@ -248,7 +251,7 @@ def on_message(client, userdata, message):
 
 
 def setup_db():
-    conn = sqlite3.connect(DBPATH)
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""    
         CREATE TABLE IF NOT EXISTS detections (    
@@ -301,7 +304,7 @@ def load_logger():
     console_handler.setFormatter(formatter)
 
     # Create a file handler to log messages to a file
-    file_handler = logging.FileHandler('frigateclassifier.log')
+    file_handler = logging.FileHandler(LOG_FILE)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
 

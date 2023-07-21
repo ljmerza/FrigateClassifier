@@ -5,5 +5,6 @@ RUN pip install -r requirements.txt
 
 COPY index.py .
 COPY data/ ./data/
+COPY images/ ./images/
 
 CMD python ./index.py
