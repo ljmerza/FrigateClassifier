@@ -25,6 +25,10 @@ logger_level: INFO
 
 Update your frigate url, mqtt server settings. If you are using mqtt authentication, update the username and password. Update the camera name(s) to match the camera name in your frigate config.
 
+You can also update the threshold for the bird and dog classification. The threshold is the minimum confidence level for the classification to be considered valid. The default is 0.7.
+
+If you dont want to classify birds or dogs, you can remove the `bird_classification` or `dog_classification` sections from the config.
+
 ### Running
 
 ```bash
