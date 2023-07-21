@@ -8,17 +8,17 @@ from tflite_model_maker.config import QuantizationConfig
 from tflite_model_maker.image_classifier import DataLoader
 
 
-# data = DataLoader.from_folder('./Images')
+data = DataLoader.from_folder('./Dog_Images')
 
-# train_data, rest_data = data.split(0.8)
-# validation_data, test_data = rest_data.split(0.5)
+train_data, rest_data = data.split(0.8)
+validation_data, test_data = rest_data.split(0.5)
 
-# model = image_classifier.create(train_data, validation_data=validation_data)
-# model.summary()
+model = image_classifier.create(train_data, validation_data=validation_data)
+model.summary()
 
-# loss, accuracy = model.evaluate(test_data)
+loss, accuracy = model.evaluate(test_data)
 
-# model.export(export_dir='.')
+model.export(export_dir='.')
 
 """
 docker build -f maker.dockerfile . -t lmerza/frigateclassifier_mm:latest

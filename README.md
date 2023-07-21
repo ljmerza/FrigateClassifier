@@ -57,3 +57,8 @@ logger_level: DEBUG
 ```
 
 Logs will be in `/config/frigateclassifier.log`
+
+### Attributions
+
+The dog model was trained by [Stanford Dogs Dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)
+Code was adapted from [mmcc-xx/WhosAtMyFeeder](https://github.com/mmcc-xx/WhosAtMyFeeder)
