@@ -2,7 +2,6 @@
 
 This is a docker image that runs a python script that can be used to identify species/breeds of animals (birds and dogs) detected by [blakeblackshear/frigate](https://github.com/blakeblackshear/frigate)
 
-
 ### Setup
 
 Create a `config.yml` file in your docker volume with the following contents:
@@ -24,8 +23,7 @@ dog_classification:
 logger_level: INFO
 ```
 
-Update your frigate url, mqtt server settings. If you are using mqtt authentication, update the username and password. Update the camera name to match the camera name in your frigate config.
-
+Update your frigate url, mqtt server settings. If you are using mqtt authentication, update the username and password. Update the camera name(s) to match the camera name in your frigate config.
 
 ### Running
 
@@ -47,7 +45,6 @@ services:
       - TZ=America/New_York
 ```
 
-
 ### Debugging
 
 set `logger_level` in your config to `DEBUG` to see more logging information:
@@ -56,3 +53,5 @@ set `logger_level` in your config to `DEBUG` to see more logging information:
 ...
 logger_level: DEBUG
 ```
+
+Logs will be in `/config/frigateclassifier.log`
