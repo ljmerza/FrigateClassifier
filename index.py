@@ -9,6 +9,7 @@ import multiprocessing
 import cv2
 import logging
 from collections import defaultdict
+import re
 
 from tflite_support.task import core
 from tflite_support.task import processor
@@ -73,6 +74,17 @@ def get_common_bird_name(scientific_name):
         _LOGGER.warn(f"No common bird name for: {scientific_name}")
         return ""
 
+def get_dog_common_name(display_name):
+    # Use regex to find the part after the hyphen
+    pattern = r'-(.+)'
+    match = re.search(pattern, display_name)
+
+    if match:
+        # Extract the part after the hyphen and title case it
+        title_cased_part = match.group(1).title()
+        return title_cased_part
+
+    return display_name
 
 def image_manipulation(response_content, after_data):
     image = Image.open(BytesIO(response_content))
@@ -254,8 +266,12 @@ def on_message(client, userdata, message):
     cursor.execute("SELECT * FROM detections WHERE frigate_event = ?", (frigate_event,))
     result = cursor.fetchone()
 
-    # get sub label that will be used
-    name = get_common_bird_name(display_name) or display_name if is_bird else display_name
+    # get sublabel that will be used
+    sublabel = None
+    if is_dog:
+        sublabel = get_dog_common_name(display_name)
+    else:
+        sublabel = get_common_bird_name(display_name)
 
     if result is None:
         # Insert a new record if it doesn't exist
@@ -267,7 +283,7 @@ def on_message(client, userdata, message):
             """, (formatted_start_time, index, score, display_name, category_name, frigate_event, after_data['camera']))
 
         # set the sublabel
-        set_sublabel(frigate_url, frigate_event, name)
+        set_sublabel(frigate_url, frigate_event, sublabel)
     else:
         _LOGGER.info("There is already a record for this event. Checking score")
 
@@ -282,7 +298,7 @@ def on_message(client, userdata, message):
                 WHERE frigate_event = ?  
                 """, (formatted_start_time, index, score, display_name, category_name, frigate_event))
             # set the sublabel
-            set_sublabel(frigate_url, frigate_event, name)
+            set_sublabel(frigate_url, frigate_event, sublabel)
         else:
             _LOGGER.info("New score is lower.")
 
