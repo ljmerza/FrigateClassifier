@@ -1,6 +1,9 @@
+import signal
+from datetime import datetime
+from io import BytesIO
+
 import sqlite3
 import numpy as np
-from datetime import datetime
 import time
 import multiprocessing
 import cv2
@@ -19,7 +22,6 @@ import sys
 import json
 import requests
 from PIL import Image, ImageOps
-from io import BytesIO
 
 bird_classifier = None
 dog_classifier = None
@@ -44,6 +46,24 @@ LABELS = {
     'BIRD': 'bird',
 }
 
+class TimeoutError(Exception):
+    pass
+
+class timeout:
+    def __init__(self, seconds=1, error_message='Timeout'):
+        print('initializing timeout')
+        self.seconds = seconds
+        self.error_message = error_message
+    def handle_timeout(self, signum, frame):
+        print('handling timeout')
+        raise TimeoutError(self.error_message)
+    def __enter__(self):
+        print('entering timeout')
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+    def __exit__(self, type, value, traceback):
+        print('exiting timeout')
+        signal.alarm(0)
 
 def get_common_bird_name(scientific_name):
     conn = sqlite3.connect(BIRD_NAME_DB)
@@ -81,7 +101,6 @@ def image_manipulation(response_content, after_data):
     padded_image.save(IMAGE_FILE_PADDED, format="JPEG")
 
     return image, padded_image, cropped_image
-
 
 def classify(response_content, after_data):
     categories = None
@@ -157,11 +176,9 @@ def on_message(client, userdata, message):
         _LOGGER.debug("skipping first message")
         return
 
-    # Convert the MQTT payload to a Python dictionary
+    # get frigate event payload
     payload_dict = json.loads(message.payload)
     _LOGGER.debug(f'mqtt message: {payload_dict}')
-
-    # Extract the 'after' element data and store it in a dictionary
     after_data = payload_dict.get('after', {})
 
     if not after_data['camera'] in config['frigate']['camera']:
@@ -171,6 +188,7 @@ def on_message(client, userdata, message):
     is_bird = after_data['label'] == LABELS['BIRD']
     is_dog = after_data['label'] == LABELS['DOG']
 
+    # get classification config
     classification_config = None
     if is_bird:
         classification_config = config.get('bird_classification')
@@ -179,12 +197,11 @@ def on_message(client, userdata, message):
     else:
         _LOGGER.debug(f"Skipping event: {after_data['id']} because it is not a classified object: {after_data['label']}")
         return
-
-    classification_config = config.get('bird_classification') if is_bird else config.get('dog_classification')
     if not classification_config:
         _LOGGER.error(f"Could not find classification config for {after_data['label']}")
         return
     
+    # get frigate event
     frigate_event = after_data['id']
     frigate_url = config['frigate']['frigate_url']
 
@@ -200,7 +217,13 @@ def on_message(client, userdata, message):
         return
     
     # classify
-    categories = classify(response.content, after_data)
+    categories = None
+    try:
+        with timeout(seconds=10):
+            categories = classify(response.content, after_data)
+    except TimeoutError:
+        _LOGGER.error(f"TimeoutError classifying event: {frigate_event}")
+        return
     if categories is None:
         return
     
