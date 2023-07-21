@@ -1,6 +1,9 @@
+import signal
+from datetime import datetime
+from io import BytesIO
+
 import sqlite3
 import numpy as np
-from datetime import datetime
 import time
 import multiprocessing
 import cv2
@@ -19,15 +22,12 @@ import sys
 import json
 import requests
 from PIL import Image, ImageOps
-from io import BytesIO
 
-bird_classifier = None
-dog_classifier = None
 config = None
 firstmessage = True
 _LOGGER = None
 
-VERSION = '1.0.0'
+VERSION = '1.0.1-beta1'
 
 CONFIG_PATH = './config/config.yml'
 DB_PATH = './config/classifier.db'
@@ -44,6 +44,20 @@ LABELS = {
     'BIRD': 'bird',
 }
 
+class TimeoutError(Exception):
+    pass
+
+class timeout:
+    def __init__(self, seconds=1, error_message='Timeout'):
+        self.seconds = seconds
+        self.error_message = error_message
+    def handle_timeout(self, signum, frame):
+        raise TimeoutError(self.error_message)
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+    def __exit__(self, type, value, traceback):
+        signal.alarm(0)
 
 def get_common_bird_name(scientific_name):
     conn = sqlite3.connect(BIRD_NAME_DB)
@@ -82,28 +96,42 @@ def image_manipulation(response_content, after_data):
 
     return image, padded_image, cropped_image
 
-
 def classify(response_content, after_data):
-    categories = None
     label = after_data['label']
     _LOGGER.debug(f"classifying image for a {label}")
 
+    # format image for classification
     image, padded_image, cropped_image = image_manipulation(response_content, after_data)
-
     np_arr = np.array(padded_image)
-    # tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
     tensor_image = vision.TensorImage.create_from_array(np_arr)
+    # tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
 
+    # get classifier file
+    file_name = None
     if label == LABELS['BIRD']:
-        categories = bird_classifier.classify(tensor_image)
+        file_name='data/bird_model.tflite'
     elif label == LABELS['DOG']:
-        categories = dog_classifier.classify(tensor_image)
+        file_name='data/dog_model.tflite'
+        
     else:
         _LOGGER.error(f"Unknown label: {label}")
         return None
     
-    _LOGGER.debug(f'classify categories: {categories}')
-    return categories.classifications[0].categories
+    # generate classifier and classify with timeout
+    base_options = core.BaseOptions(file_name=file_name, use_coral=False, num_threads=4)
+    classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
+    options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
+    classifier = vision.ImageClassifier.create_from_options(options)
+
+    try:
+        with timeout(seconds=30):
+            result = classifier.classify(tensor_image)
+            categories = result.classifications[0].categories
+            _LOGGER.debug(f'classify categories: {categories}')
+            return categories
+    except TimeoutError:
+        _LOGGER.error(f"TimeoutError classifying event: {frigate_event}")
+        return None
 
 
 def on_connect(client, userdata, flags, rc):
@@ -150,103 +178,118 @@ def set_sublabel(frigate_url, frigate_event, sublabel):
 
 
 def on_message(client, userdata, message):
-    conn = sqlite3.connect(DB_PATH)
 
     global firstmessage
-    if not firstmessage:
-
-        # Convert the MQTT payload to a Python dictionary
-        payload_dict = json.loads(message.payload)
-        _LOGGER.debug(f'mqtt message: {payload_dict}')
-
-        # Extract the 'after' element data and store it in a dictionary
-        after_data = payload_dict.get('after', {})
-
-        is_bird = after_data['label'] == LABELS['BIRD']
-        is_dog = after_data['label'] == LABELS['DOG']
-
-        is_classified_object = is_bird or is_dog
-        classification_config = config['bird_classification'] if is_bird else config['dog_classification']
-        
-        if (after_data['camera'] in config['frigate']['camera'] and is_classified_object):
-            frigate_event = after_data['id']
-            frigate_url = config['frigate']['frigate_url']
-
-            snapshot_url = f"{frigate_url}/api/events/{frigate_event}/snapshot.jpg"
-            _LOGGER.debug(f"Getting image for event: {frigate_event}" )
-            _LOGGER.debug(f"event URL: {snapshot_url}")
-
-            response = requests.get(snapshot_url, params={ "crop": 1, "quality": 95 })
-
-            # Check if the request was successful (HTTP status code 200)
-            if response.status_code == 200:
-                categories = classify(response.content, after_data)
-                if categories is None:
-                    return
-                    
-                category = categories[0]
-                index = category.index
-                score = category.score
-                display_name = category.display_name
-                category_name = category.category_name
-
-                start_time = datetime.fromtimestamp(after_data['start_time'])
-                formatted_start_time = start_time.strftime("%Y-%m-%d %H:%M:%S")
-                result_text = formatted_start_time + "\n"
-                result_text = result_text + str(category)
-                _LOGGER.debug(f"result_text: {result_text}")
-
-                if index != 964 and score > classification_config['threshold']:  # 964 is "background"
-                    cursor = conn.cursor()
-
-                    # Check if a record with the given frigate_event exists
-                    cursor.execute("SELECT * FROM detections WHERE frigate_event = ?", (frigate_event,))
-                    result = cursor.fetchone()
-
-                    name = get_common_bird_name(display_name) or display_name if is_bird else display_name
-
-                    if result is None:
-                        # Insert a new record if it doesn't exist
-                        _LOGGER.info("No record yet for this event. Storing.")
-
-                        cursor.execute("""  
-                            INSERT INTO detections (detection_time, detection_index, score,  
-                            display_name, category_name, frigate_event, camera_name) VALUES (?, ?, ?, ?, ?, ?, ?)  
-                            """, (formatted_start_time, index, score, display_name, category_name, frigate_event, after_data['camera']))
-
-                        # set the sublabel
-                        set_sublabel(frigate_url, frigate_event, name)
-                    else:
-                        _LOGGER.info("There is already a record for this event. Checking score")
-
-                        # Update the existing record if the new score is higher
-                        existing_score = result[3]
-                        if score > existing_score:
-                            _LOGGER.info("New score is higher. Updating record with higher score.")
-                            cursor.execute("""  
-                                UPDATE detections  
-                                SET detection_time = ?, detection_index = ?, score = ?, display_name = ?, category_name = ?  
-                                WHERE frigate_event = ?  
-                                """, (formatted_start_time, index, score, display_name, category_name, frigate_event))
-                            # set the sublabel
-                            set_sublabel(frigate_url, frigate_event, name)
-                        else:
-                            _LOGGER.info("New score is lower.")
-
-                    # Commit the changes
-                    conn.commit()
-
-            else:
-                _LOGGER.error(f"Error: Could not retrieve the image: {response.text}")
-        else:
-            if after_data['camera'] not in config['frigate']['camera']:
-                _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong camera: {after_data['camera']}")
-            else:
-                _LOGGER.debug(f"Skipping event: {after_data['id']} because it is not a classified object: {after_data['label']}")
-    else:
+    if firstmessage:
         firstmessage = False
         _LOGGER.debug("skipping first message")
+        return
 
+    # get frigate event payload
+    payload_dict = json.loads(message.payload)
+    _LOGGER.debug(f'mqtt message: {payload_dict}')
+    after_data = payload_dict.get('after', {})
+
+    if not after_data['camera'] in config['frigate']['camera']:
+        _LOGGER.debug(f"Skipping event: {after_data['id']} because it is from the wrong camera: {after_data['camera']}")
+        return
+
+    is_bird = after_data['label'] == LABELS['BIRD']
+    is_dog = after_data['label'] == LABELS['DOG']
+
+    # get classification config
+    classification_config = None
+    if is_bird:
+        classification_config = config.get('bird_classification')
+    elif is_dog:
+        classification_config = config.get('dog_classification')
+    else:
+        _LOGGER.debug(f"Skipping event: {after_data['id']} because it is not a classified object: {after_data['label']}")
+        return
+    if not classification_config:
+        _LOGGER.error(f"Could not find classification config for {after_data['label']}")
+        return
+    
+    # get frigate event
+    frigate_event = after_data['id']
+    frigate_url = config['frigate']['frigate_url']
+
+    snapshot_url = f"{frigate_url}/api/events/{frigate_event}/snapshot.jpg"
+    _LOGGER.debug(f"Getting image for event: {frigate_event}" )
+    _LOGGER.debug(f"event URL: {snapshot_url}")
+
+    response = requests.get(snapshot_url, params={ "crop": 1, "quality": 95 })
+
+    # Check if the request was successful (HTTP status code 200)
+    if response.status_code != 200:
+        _LOGGER.error(f"Error getting snapshot: {response.status_code}")
+        return
+    
+    # classify  
+    categories = classify(response.content, after_data)
+    if categories is None:
+        return
+    
+    # gather classification data
+    category = categories[0]
+    index = category.index
+    score = category.score
+    display_name = category.display_name
+    category_name = category.category_name
+
+    start_time = datetime.fromtimestamp(after_data['start_time'])
+    formatted_start_time = start_time.strftime("%Y-%m-%d %H:%M:%S")
+    result_text = formatted_start_time + "\n"
+    result_text = result_text + str(category)
+    _LOGGER.debug(f"result_text: {result_text}")
+
+    # check threshold or background event
+    if index == 964 or score < classification_config['threshold']:  # 964 is "background"
+        _LOGGER.debug(f"Skipping event: {frigate_event} because it is below the threshold: {score}")
+        return
+
+    # get db connection
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Check if a record with the given frigate_event exists
+    cursor.execute("SELECT * FROM detections WHERE frigate_event = ?", (frigate_event,))
+    result = cursor.fetchone()
+
+    # get sub label that will be used
+    name = get_common_bird_name(display_name) or display_name if is_bird else display_name
+
+    if result is None:
+        # Insert a new record if it doesn't exist
+        _LOGGER.info("No record yet for this event. Storing.")
+
+        cursor.execute("""  
+            INSERT INTO detections (detection_time, detection_index, score,  
+            display_name, category_name, frigate_event, camera_name) VALUES (?, ?, ?, ?, ?, ?, ?)  
+            """, (formatted_start_time, index, score, display_name, category_name, frigate_event, after_data['camera']))
+
+        # set the sublabel
+        set_sublabel(frigate_url, frigate_event, name)
+    else:
+        _LOGGER.info("There is already a record for this event. Checking score")
+
+        # Update the existing record if the new score is higher
+        existing_score = result[3]
+
+        if score > existing_score:
+            _LOGGER.info("New score is higher. Updating record with higher score.")
+            cursor.execute("""  
+                UPDATE detections  
+                SET detection_time = ?, detection_index = ?, score = ?, display_name = ?, category_name = ?  
+                WHERE frigate_event = ?  
+                """, (formatted_start_time, index, score, display_name, category_name, frigate_event))
+            # set the sublabel
+            set_sublabel(frigate_url, frigate_event, name)
+        else:
+            _LOGGER.info("New score is lower.")
+
+    # Commit the changes
+    conn.commit()
     conn.close()
 
 
@@ -322,22 +365,7 @@ def main():
     _LOGGER.info(f"Time: {current_time}")
     _LOGGER.info(f"Python Version: {sys.version}")
     _LOGGER.info(f"Frigate Classifier Version: {VERSION}")
-
     _LOGGER.debug(f"config: {config}")
-
-    classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
-
-    # Initialize the image classification model for birds and create classifier
-    base_options = core.BaseOptions(file_name='data/bird_model.tflite', use_coral=False, num_threads=4)
-    options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
-    global bird_classifier
-    bird_classifier = vision.ImageClassifier.create_from_options(options)
-
-    # Initialize the image classification model for dog and create classifier
-    base_options = core.BaseOptions(file_name='data/dog_model.tflite', use_coral=False, num_threads=4)
-    options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
-    global dog_classifier
-    dog_classifier = vision.ImageClassifier.create_from_options(options)
 
     # start mqtt client
     mqtt_process = multiprocessing.Process(target=run_mqtt_client)
