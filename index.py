@@ -31,9 +31,10 @@ VERSION = '1.0.0'
 CONFIG_PATH = './config/config.yml'
 DBPATH = './config/classifier.db'
 BIRD_NAME_DB = './data/bird_names.db'
-IMAGE_FILE_FULL = './fullsized.jpg'
-IMAGE_FILE_CROPPED = './cropped.jpg'
-IMAGE_FILE_SHRUNK = './shrunk.jpg'
+
+IMAGE_FILE_FULL = './images/fullsized.jpg'
+IMAGE_FILE_CROPPED = './images/cropped.jpg'
+IMAGE_FILE_PADDED = './images/padded.jpg'
 
 LABELS = {
     'DOG': 'dog',
@@ -56,29 +57,43 @@ def get_common_bird_name(scientific_name):
         return ""
 
 
-def classify(label, image):
+def image_manipulation(response_content, after_data):
+    image = Image.open(BytesIO(response_content))
+    image.save(IMAGE_FILE_FULL, format="JPEG")
+
+    # crop the image and save
+    bounding_box = after_data['box']
+    region = after_data['region']
+    cropped_image = image.crop(bounding_box)
+    cropped_image.save(IMAGE_FILE_CROPPED, format="JPEG")
+
+    # Resize the image while maintaining its aspect ratio
+    max_size = (224, 224)
+    image.thumbnail(max_size)
+
+    # Pad the image to fill the remaining space
+    x = (max_size[0] - image.size[0]) // 2
+    y = (max_size[1] - image.size[1]) // 2
+    padded_image = ImageOps.expand(image, border=(x, y), fill='black')
+    padded_image.save(IMAGE_FILE_PADDED, format="JPEG")
+
+    return image, padded_image, cropped_image
+
+
+def classify(response_content, after_data):
     categories = None
+    label = after_data['label']
+    _LOGGER.debug(f"classifying image for a {label}")
+
+    image, padded_image, cropped_image = image_manipulation(response_content, after_data)
+
+    np_arr = np.array(padded_image)
+    # tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
+    tensor_image = vision.TensorImage.create_from_array(np_arr)
 
     if label == LABELS['BIRD']:
-        # Resize the image while maintaining its aspect ratio
-        max_size = (224, 224)
-        image.thumbnail(max_size)
-
-        # Pad the image to fill the remaining space
-        x = (max_size[0] - image.size[0]) // 2
-        y = (max_size[1] - image.size[1]) // 2
-        padded_image = ImageOps.expand(image, border=(x, y), fill='black')
-        padded_image.save(IMAGE_FILE_SHRUNK, format="JPEG")
-        np_arr = np.array(padded_image)
-
-        tensor_image = vision.TensorImage.create_from_array(image)
         categories = bird_classifier.classify(tensor_image)
-
     elif label == LABELS['DOG']:
-        # # crop the image and save
-        # cropped_image = image.crop(bounding_box)
-        # cropped_image.save(IMAGE_FILE_CROPPED, format="JPEG")
-        tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
         categories = dog_classifier.classify(tensor_image)
     else:
         _LOGGER.error(f"Unknown label: {label}")
@@ -147,9 +162,6 @@ def on_message(client, userdata, message):
         is_bird = after_data['label'] == LABELS['BIRD']
         is_dog = after_data['label'] == LABELS['DOG']
 
-        # bounding box of event object
-        bounding_box = after_data['region']
-
         is_classified_object = is_bird or is_dog
         classification_config = config['bird_classification'] if is_bird else config['dog_classification']
         
@@ -161,19 +173,11 @@ def on_message(client, userdata, message):
             _LOGGER.debug(f"Getting image for event: {frigate_event}" )
             _LOGGER.debug(f"event URL: {snapshot_url}")
 
-            params = {
-                "crop": 1,
-                "quality": 95
-            }
-            response = requests.get(snapshot_url, params=params)
+            response = requests.get(snapshot_url, params={ "crop": 1, "quality": 95 })
 
             # Check if the request was successful (HTTP status code 200)
             if response.status_code == 200:
-                image = Image.open(BytesIO(response.content))
-                image.save(IMAGE_FILE_FULL, format="JPEG")
-
-                _LOGGER.debug(f"classifying image for a {after_data['label']}")
-                categories = classify(after_data['label'], image)
+                categories = classify(response.content, after_data)
                 if categories is None:
                     return
                     

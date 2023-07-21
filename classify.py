@@ -13,8 +13,9 @@ import numpy as np
 
 
 CONFIG_PATH = './config/config.yml'
-IMAGE_FILE_FULL = './fullsized_test.jpg'
-IMAGE_FILE_CROPPED = './cropped_test.jpg'
+IMAGE_FILE_FULL = './images/fullsized_test.jpg'
+IMAGE_FILE_CROPPED = './images/cropped_test.jpg'
+IMAGE_FILE_PADDED = './images/padded_test.jpg'
 
 config = None
 with open(CONFIG_PATH, 'r') as config_file:
@@ -22,17 +23,9 @@ with open(CONFIG_PATH, 'r') as config_file:
 
 
 frigate_url = config['frigate']['frigate_url']
-frigate_event = '1689904097.55648-4d2bwl'
-crop = (184, 212, 233, 275)
-region = (51, 40, 371, 360)
-
-def add_lists_elementwise(list1, list2):
-    if len(list1) != len(list2):
-        raise ValueError("Both lists must have the same length.")
-    result = (list1[i] + list2[i] for i in range(len(list1)))
-    return result
-
-crop_transform = region # add_lists_elementwise(crop, region)
+frigate_event = '1689958086.071282-gqgpdf'
+bounding_box = [1341, 895, 1495, 1061]
+region = [1155, 496, 1739, 1080]
 
 if not frigate_event:
   raise OSError('No event specified')
@@ -40,24 +33,13 @@ if not frigate_event:
 snapshot_url = f"{frigate_url}/api/events/{frigate_event}/snapshot.jpg"
 
 params = {
-    # "crop": 1,
+    "crop": 1,
     "quality": 95
 }
 response = requests.get(snapshot_url, params=params)
 
 if response.status_code != 200:
   raise OSError(f"Error getting snapshot: {response.status_code}")
-
-image = Image.open(BytesIO(response.content))
-image.save(IMAGE_FILE_FULL, format="JPEG")
-
-# Resize the image while maintaining its aspect ratio
-# max_size = (224, 224)
-# image.thumbnail(max_size)
-
-# Pad the image to fill the remaining space
-padded_image = image.crop(crop_transform)
-padded_image.save(IMAGE_FILE_CROPPED, format="JPEG")
 
 classification_options = processor.ClassificationOptions(max_results=1, score_threshold=0)
 
@@ -70,8 +52,27 @@ base_options = core.BaseOptions(file_name='data/dog_model.tflite', use_coral=Fal
 options = vision.ImageClassifierOptions(base_options=base_options, classification_options=classification_options)
 dog_classifier = vision.ImageClassifier.create_from_options(options)
 
-# Alternatively, you can create an image classifier in the following manner:
-# classifier = vision.ImageClassifier.create_from_file(model_path)
+
+def image_manipulation(response_content):
+    image = Image.open(BytesIO(response_content))
+    image.save(IMAGE_FILE_FULL, format="JPEG")
+
+    # crop the image and save
+    cropped_image = image.crop(bounding_box)
+    cropped_image.save(IMAGE_FILE_CROPPED, format="JPEG")
+
+    # Resize the image while maintaining its aspect ratio
+    max_size = (224, 224)
+    image.thumbnail(max_size)
+
+    # Pad the image to fill the remaining space
+    x = (max_size[0] - image.size[0]) // 2
+    y = (max_size[1] - image.size[1]) // 2
+    padded_image = ImageOps.expand(image, border=(x, y), fill='black')
+    padded_image.save(IMAGE_FILE_PADDED, format="JPEG")
+
+    return image, padded_image, cropped_image
+
 
 def get_specs(result):
   categories = result.classifications[0].categories
@@ -83,36 +84,19 @@ def get_specs(result):
 
   print(f"result_text: {category_name}, {display_name}, {score}, {index}")
 
-image = vision.TensorImage.create_from_file(IMAGE_FILE_FULL)
-classification_result_bird = bird_classifier.classify(image)
-classification_result_dog = dog_classifier.classify(image)
+
+image, padded_image, cropped_image = image_manipulation(response.content)
+
+np_arr = np.array(padded_image)
+tensor_image = vision.TensorImage.create_from_array(np_arr)
+
+classification_result_bird = bird_classifier.classify(tensor_image)
+classification_result_dog = dog_classifier.classify(tensor_image)
 get_specs(classification_result_bird)
 get_specs(classification_result_dog)
 
-image = vision.TensorImage.create_from_file(IMAGE_FILE_CROPPED)
-classification_result_bird = bird_classifier.classify(image)
-classification_result_dog = dog_classifier.classify(image)
+tensor_image = vision.TensorImage.create_from_file(IMAGE_FILE_PADDED)
+classification_result_bird = bird_classifier.classify(tensor_image)
+classification_result_dog = dog_classifier.classify(tensor_image)
 get_specs(classification_result_bird)
 get_specs(classification_result_dog)
-
-
-interpreter = tflite.Interpreter(model_path='data/bird_model.tflite')
-interpreter.allocate_tensors()
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-
-img = cv2.imread(IMAGE_FILE_FULL)
-img = cv2.resize(img,(224,224))
-input_shape = input_details[0]['shape']
-input_tensor= np.array(np.expand_dims(img,0))
-
-input_index = interpreter.get_input_details()[0]["index"]
-interpreter.set_tensor(input_index, input_tensor)
-interpreter.invoke()
-output_details = interpreter.get_output_details()
-
-output_data = interpreter.get_tensor(output_details[0]['index'])
-pred = np.squeeze(output_data)
-highest_pred_loc = np.argmax(pred)
-print(highest_pred_loc)
-print(output_details)
