@@ -22,7 +22,7 @@ model.export(export_dir='.')
 
 """
 docker build -f maker.dockerfile . -t lmerza/frigateclassifier_mm:latest
-docker run -v ./Images:/usr/app/src/Images lmerza/frigateclassifier_mm:latest
+docker run -v ./Dog_Images:/usr/app/src/Images lmerza/frigateclassifier_mm:latest
 
 docker login
 
@@ -32,5 +32,5 @@ docker push lmerza/frigateclassifier:1.0.3
 docker build -t lmerza/frigateclassifier:latest . 
 docker push lmerza/frigateclassifier:latest
 
-docker system prune -a
+docker system prune -a -y
 """
