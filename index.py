@@ -28,7 +28,7 @@ config = None
 firstmessage = True
 _LOGGER = None
 
-VERSION = '1.0.2'
+VERSION = '1.0.3'
 
 CONFIG_PATH = './config/config.yml'
 DB_PATH = './config/classifier.db'
@@ -173,12 +173,9 @@ def set_sublabel(frigate_url, frigate_event, sublabel):
     if len(sublabel) > 20:
         sublabel = sublabel[:20]
 
-    payload = { "subLabel": sublabel }
-
-    # Set the headers for the request
-    headers = { "Content-Type": "application/json" }
-
     # Submit the POST request with the JSON payload
+    payload = { "subLabel": sublabel }
+    headers = { "Content-Type": "application/json" }
     response = requests.post(post_url, data=json.dumps(payload), headers=headers)
 
     # Check for a successful response
@@ -244,7 +241,7 @@ def on_message(client, userdata, message):
     category = categories[0]
     index = category.index
     score = category.score
-    display_name = category.display_name
+    display_name = category.display_name or category.category_name 
     category_name = category.category_name
 
     start_time = datetime.fromtimestamp(after_data['start_time'])
