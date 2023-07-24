@@ -1,7 +1,7 @@
 FROM python:3.9
 
-RUN addgroup --system app && adduser --system --group app
-USER app
+# RUN addgroup --system app && adduser --system --group app
+# USER app
 
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 COPY requirements.txt .
