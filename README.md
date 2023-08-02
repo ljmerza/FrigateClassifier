@@ -83,5 +83,3 @@ nohup python train_dog_model.py > output.log 2>&1 &
 ### Attributions
 
 The dog model was trained by [Stanford Dogs Dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)
-
-Code was adapted from [mmcc-xx/WhosAtMyFeeder](https://github.com/mmcc-xx/WhosAtMyFeeder)
