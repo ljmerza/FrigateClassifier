@@ -3,6 +3,8 @@ images.tar
 dog_images
 dog_images_formatted
 
+output.log
+
 __pycache__
 
 config

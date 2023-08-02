@@ -79,7 +79,7 @@ with open('dog_classifier_model.tflite', 'wb') as f:
 
 # Evaluate the model
 test_data = data_gen.flow_from_directory(
-    data_dir,
+    test_dir,
     target_size=(img_height, img_width),
     batch_size=batch_size,
     subset='validation'
