@@ -66,6 +66,17 @@ logger_level: DEBUG
 
 Logs will be in `/config/frigateclassifier.log`
 
+### Training Dog Dataset
+
+```bash
+curl -O http://vision.stanford.edu/aditya86/ImageNetDogs/images.tar
+mkdir -p dog_images
+tar -xf images.tar -C dog_images --strip-components=1
+
+python format_dog_dataset.py
+python train_dog_model.py
+```
+
 ### Attributions
 
 The dog model was trained by [Stanford Dogs Dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)

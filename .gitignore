@@ -1,5 +1,7 @@
-Dog_Images
 images/*
+images.tar
+dog_images
+dog_images_formatted
 
 __pycache__
 
