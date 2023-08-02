@@ -71,7 +71,7 @@ def get_common_bird_name(scientific_name):
     if result:
         return result[0]
     else:
-        _LOGGER.warn(f"No common bird name for: {scientific_name}")
+        _LOGGER.warning(f"No common bird name for: {scientific_name}")
         return ""
 
 def get_common_dog_name(display_name):
@@ -152,13 +152,13 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     if rc != 0:
-        _LOGGER.warn("Unexpected disconnection, trying to reconnect")
+        _LOGGER.warning("Unexpected disconnection, trying to reconnect")
         while True:
             try:
                 client.reconnect()
                 break
             except Exception as e:
-                _LOGGER.warn(f"Reconnection failed due to {e}, retrying in 60 seconds")
+                _LOGGER.warning(f"Reconnection failed due to {e}, retrying in 60 seconds")
                 time.sleep(60)
     else:
         _LOGGER.error("Expected disconnection")

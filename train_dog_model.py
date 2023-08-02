@@ -69,12 +69,12 @@ model.fit(
 )
 
 # Save the model
-model.save('dog_classifier_model.h5')
+model.save('data/dog_classifier_model.h5')
 
 # Convert and save the model to TFLite format
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
-with open('dog_classifier_model.tflite', 'wb') as f:
+with open('data/dog_classifier_model.tflite', 'wb') as f:
     f.write(tflite_model)
 
 # Evaluate the model
