@@ -60,7 +60,6 @@ https://hub.docker.com/r/lmerza/frigateclassifier
 set `logger_level` in your config to `DEBUG` to see more logging information:
 
 ```yml
-...
 logger_level: DEBUG
 ```
 
@@ -75,7 +74,10 @@ tar -xf images.tar -C dog_images --strip-components=1
 
 python format_dog_dataset.py
 python train_dog_model.py
-nohup python3 train_dog_model.py > output.log 2>&1 &
+
+or
+
+nohup python train_dog_model.py > output.log 2>&1 &
 ```
 
 ### Attributions
