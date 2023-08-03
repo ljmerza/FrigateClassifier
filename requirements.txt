@@ -5,3 +5,4 @@ PyYAML==6.0.1
 tflite-support==0.4.4
 requests==2.31.0
 Pillow==10.0.0
+tensorflow==2.13.0

@@ -6,6 +6,7 @@ dog_images_formatted
 output.log
 
 __pycache__
+venv
 
 config
 

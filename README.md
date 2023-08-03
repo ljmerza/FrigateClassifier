@@ -77,7 +77,7 @@ python train_dog_model.py
 
 or
 
-nohup python train_dog_model.py > output.log 2>&1 &
+nohup python3 train_dog_model.py > output.log 2>&1 &
 ```
 
 ### Attributions
