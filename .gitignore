@@ -2,7 +2,6 @@ images/*
 images.tar
 dog_images
 dog_images_formatted
-env
 
 data/dog_classifier_model.h5
 data/dog_classifier_model.tflite

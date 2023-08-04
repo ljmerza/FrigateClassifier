@@ -68,6 +68,10 @@ Logs will be in `/config/frigateclassifier.log`
 ### Training Dog Dataset
 
 ```bash
+conda env create -f environment.yml
+conda activate fc_env
+pip install -r requirements.txt
+
 curl -O http://vision.stanford.edu/aditya86/ImageNetDogs/images.tar
 mkdir -p dog_images
 tar -xf images.tar -C dog_images --strip-components=1
