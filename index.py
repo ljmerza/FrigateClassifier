@@ -28,7 +28,7 @@ config = None
 firstmessage = True
 _LOGGER = None
 
-VERSION = '1.0.3'
+VERSION = '1.0.4'
 
 CONFIG_PATH = './config/config.yml'
 DB_PATH = './config/classifier.db'
@@ -270,7 +270,7 @@ def on_message(client, userdata, message):
     elif is_bird:
         sublabel = get_common_bird_name(display_name)
     else:
-        _LOGGER.error(f"Unknown label: {label}")
+        _LOGGER.error(f"Unknown label: {after_data['label']}")
         return
 
     if result is None:

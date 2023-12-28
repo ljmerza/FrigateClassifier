@@ -11,6 +11,5 @@ COPY index.py .
 COPY data/ ./data/
 COPY images/ ./images/
 
-
-
-ENTRYPOINT  ["python", "./index.py"]
+ENTRYPOINT  ["python"]
+CMD ["./index.py"]
