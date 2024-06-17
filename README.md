@@ -14,6 +14,9 @@ Create a `config.yml` file in your docker volume with the following contents:
 frigate:
   frigate_url: http://127.0.0.1:5000
   mqtt_server: 127.0.0.1
+  mqtt_port: 1883
+  mqtt_tls: false
+  mqtt_tls_cert_chain: "/config/certchain.crt"
   mqtt_auth: false
   mqtt_username: username
   mqtt_password: password
@@ -28,7 +31,11 @@ dog_classification:
 logger_level: INFO
 ```
 
-Update your frigate url, mqtt server settings. If you are using mqtt authentication, update the username and password. Update the camera name(s) to match the camera name in your frigate config.
+Update your frigate url, mqtt server settings. If you are using mqtt authentication, update the username and password. 
+
+If you are using mqtt with TLS, change mqtt_port to 8883, mqtt_tls to true and create your certchain.crt. This file should include the public key of your mqtt server and any intermediate and root CA certs in the chain. 
+
+Update the camera name(s) to match the camera name in your frigate config.
 
 You can also update the threshold for the bird and dog classification. The threshold is the minimum confidence level for the classification to be considered valid. The default is 0.7.
 
