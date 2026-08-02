@@ -88,3 +88,9 @@ nohup python3 train_dog_model.py > output.log 2>&1 &
 ### Attributions
 
 The dog model was trained by [Stanford Dogs Dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)
+
+---
+
+Enjoy my work? Help me out for a couple of :beers: or a :coffee:!
+
+<a href="https://www.buymeacoffee.com/JMISm06AD"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="41" width="174"></a>
