@@ -1,5 +1,16 @@
 # Frigate Classifier
 
+<p align="center">
+<img src="https://img.shields.io/github/stars/ljmerza/FrigateClassifier?style=for-the-badge&label=Stars&color=orange" alt="Stars">
+<a href="https://github.com/ljmerza/FrigateClassifier/releases/latest"><img src="https://img.shields.io/github/v/release/ljmerza/FrigateClassifier?style=for-the-badge&color=purple" alt="Version"></a>
+<a href="https://github.com/ljmerza/FrigateClassifier/actions/workflows/deploy.yaml"><img src="https://img.shields.io/github/actions/workflow/status/ljmerza/FrigateClassifier/deploy.yaml?style=for-the-badge&label=Build" alt="Build"></a>
+<a href="https://github.com/ljmerza/FrigateClassifier/blob/master/LICENSE"><img src="https://img.shields.io/github/license/ljmerza/FrigateClassifier?style=for-the-badge&label=License&color=green" alt="License"></a>
+</p>
+
+<p align="center">
+<a href="https://www.buymeacoffee.com/JMISm06AD"><img src="https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy Me A Coffee"></a>
+</p>
+
 Identify breeds/species of dogs and birds detected by [blakeblackshear/frigate](https://github.com/blakeblackshear/frigate). This will try to identify a bird or dog and add a Frigate sublabel to that event.
 
 ![Bird Classification](bird_example.png)
@@ -88,9 +99,3 @@ nohup python3 train_dog_model.py > output.log 2>&1 &
 ### Attributions
 
 The dog model was trained by [Stanford Dogs Dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)
-
----
-
-Enjoy my work? Help me out for a couple of :beers: or a :coffee:!
-
-<a href="https://www.buymeacoffee.com/JMISm06AD"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="41" width="174"></a>
