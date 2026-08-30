@@ -16,6 +16,7 @@ from tflite_support.task import processor
 from tflite_support.task import vision
 from tflite_support import metadata_schema_py_generated as _metadata_fb
 
+import ssl
 import paho.mqtt.client as mqtt
 import hashlib
 import yaml
@@ -28,7 +29,7 @@ config = None
 firstmessage = True
 _LOGGER = None
 
-VERSION = '1.0.5'
+VERSION = '1.0.6'
 
 CONFIG_PATH = './config/config.yml'
 DB_PATH = './config/classifier.db'
@@ -335,7 +336,7 @@ def load_config():
         config = yaml.safe_load(config_file)
 
 def run_mqtt_client():
-    _LOGGER.info(f"Starting MQTT client. Connecting to: {config['frigate']['mqtt_server']}")
+    _LOGGER.info(f"Starting MQTT client. Connecting to: {config['frigate']['mqtt_server']}:{config['frigate']['mqtt_port']}")
     now = datetime.now()
     current_time = now.strftime("%Y%m%d%H%M%S")
 
@@ -351,7 +352,10 @@ def run_mqtt_client():
         password = config['frigate']['mqtt_password']
         client.username_pw_set(username, password)
 
-    client.connect(config['frigate']['mqtt_server'])
+    if config['frigate']['mqtt_tls']:
+        client.tls_set(config['frigate']['mqtt_tls_cert_chain'], tls_version=ssl.PROTOCOL_TLSv1_2)
+
+    client.connect(config['frigate']['mqtt_server'], config['frigate']['mqtt_port'])
     client.loop_forever()
 
 def load_logger():
